@@ -18,6 +18,7 @@ MyWindow::MyWindow(QApplication *parent) :
   connect(viewer, SIGNAL(startComputation(QString)), this, SLOT(startComputation(QString)));
   connect(viewer, SIGNAL(midComputation(int)), this, SLOT(midComputation(int)));
   connect(viewer, SIGNAL(endComputation()), this, SLOT(endComputation()));
+  connect(viewer, SIGNAL(X_showMedian()), this, SLOT(X_showMedian()));
   setCentralWidget(viewer);
 
   /////////////////////////
@@ -42,6 +43,10 @@ MyWindow::MyWindow(QApplication *parent) :
   cutoffAction->setStatusTip(tr("Set mean map cutoff ratio"));
   connect(cutoffAction, SIGNAL(triggered()), this, SLOT(setCutoff()));
 
+  auto X_medianAction = new QAction(tr("Show &median"), this);
+  X_medianAction->setStatusTip(tr("Show median"));
+  connect(X_medianAction, SIGNAL(triggered()), this, SLOT(X_showMedian()));
+
   auto rangeAction = new QAction(tr("Set &range"), this);
   rangeAction->setStatusTip(tr("Set mean map range"));
   connect(rangeAction, SIGNAL(triggered()), this, SLOT(setRange()));
@@ -59,6 +64,7 @@ MyWindow::MyWindow(QApplication *parent) :
   visMenu->addAction(cutoffAction);
   visMenu->addAction(rangeAction);
   visMenu->addAction(slicingAction);
+  visMenu->addAction(X_medianAction);
 }
 
 MyWindow::~MyWindow() {
@@ -138,6 +144,30 @@ void MyWindow::setCutoff() {
     viewer->setCutoffRatio(sb->value());
     viewer->update();
   }
+}
+
+void MyWindow::X_showMedian() {
+	auto dlg = std::make_unique<QDialog>(this);
+	auto *hb1 = new QHBoxLayout,
+		*hb2 = new QHBoxLayout;
+	auto *vb = new QVBoxLayout;
+	auto *text = new QLabel(tr("Median:"));
+	auto *med = new QLabel(tr(std::to_string(viewer->X_getMedian()).c_str()));
+	auto *ok = new QPushButton(tr("Ok"));
+
+	connect(ok, SIGNAL(pressed()), dlg.get(), SLOT(accept()));
+	ok->setDefault(true);
+
+	hb1->addWidget(text);
+	hb1->addWidget(med);
+	hb2->addWidget(ok);
+	vb->addLayout(hb1);
+	vb->addLayout(hb2);
+
+	dlg->setWindowTitle(tr("Show median"));
+	dlg->setLayout(vb);
+
+	if (dlg->exec() == QDialog::Accepted);
 }
 
 void MyWindow::setRange() {

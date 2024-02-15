@@ -20,6 +20,7 @@ private slots:
   void save();
   void setCutoff();
   void setRange();
+  void X_showMedian();
   void setSlicing();
   void startComputation(QString message);
   void midComputation(int percent);

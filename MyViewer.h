@@ -16,6 +16,7 @@ public:
   virtual ~MyViewer();
 
   inline double getCutoffRatio() const;
+  inline double X_getMedian() const;
   inline void setCutoffRatio(double ratio);
   inline double getMeanMin() const;
   inline void setMeanMin(double min);
@@ -33,6 +34,7 @@ signals:
   void startComputation(QString message);
   void midComputation(int percent);
   void endComputation();
+  void X_showMedian();
 
 protected:
   virtual void init() override;
@@ -76,6 +78,13 @@ private:
   void drawAxes() const;
   void drawAxesWithNames() const;
   static Vec intersectLines(const Vec &ap, const Vec &ad, const Vec &bp, const Vec &bd);
+  // Task
+  double X_getTriangleArea(OpenMesh::FaceHandle face) const;
+  std::vector<double> X_triangleAreas() const;
+  double X_calcMedian(std::vector<double> trianglesArray) const;
+  double X_calcFirstQuartile(std::vector<double> trianglesArray) const;
+  double X_calcLastQuartile(std::vector<double> trianglesArray) const;
+  std::vector<GLdouble> X_triangleColor(OpenMesh::FaceHandle face, double firstQuartile, double lastQuartile) const;
 
   // Other
   void fairMesh();
@@ -95,8 +104,9 @@ private:
 
   // Visualization
   double mean_min, mean_max, cutoff_ratio;
+  double X_firstQuartile, X_lastQuartile;
   bool show_control_points, show_solid, show_wireframe;
-  enum class Visualization { PLAIN, MEAN, SLICING, ISOPHOTES } visualization;
+  enum class Visualization { PLAIN, MEAN, SLICING, ISOPHOTES, X_TRIANGLES } visualization;
   GLuint isophote_texture, environment_texture, current_isophote_texture, slicing_texture;
   Vector slicing_dir;
   double slicing_scaling;

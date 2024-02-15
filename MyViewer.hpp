@@ -2,6 +2,10 @@ double MyViewer::getCutoffRatio() const {
   return cutoff_ratio;
 }
 
+double MyViewer::X_getMedian() const {
+	return X_calcMedian(X_triangleAreas());
+}
+
 void MyViewer::setCutoffRatio(double ratio) {
   cutoff_ratio = ratio;
   updateMeanMinMax();
