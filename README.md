@@ -1,10 +1,22 @@
-# Usage
+# Triangle Mesh
+
+![image](https://github.com/Viktr0/Triangle-mesh/assets/47856193/d795df27-9439-45b6-9119-8cf50d32760f)
 
 Pressing `h` displays a help window that contains all the necessary information.
 If you want to use this as a base for your own project, examine the source code
 and read the documentation of the various libraries (see "Dependencies" below).
 
-# INSTALLATION
+# Usage
+
+* x
+* i
+* w
+* e
+* p
+* l
+
+
+## Installations
 
 Dependencies:
 
@@ -12,7 +24,7 @@ Dependencies:
 - libQGLViewer (http://www.libqglviewer.com/)
 - OpenMesh (http://www.openmesh.org/)
 
-## Linux
+### Linux
 
     qmake && make
 
@@ -26,7 +38,7 @@ Assumes that:
 
 If any of the above is not satisfied, edit sample-framework.pro accordingly.
 
-## Windows / Visual Studio
+### Windows / Visual Studio
 
 1. Install the Qt SDK, which should integrate itself into Visual Studio.
 
