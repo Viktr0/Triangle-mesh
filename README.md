@@ -8,7 +8,9 @@ and read the documentation of the various libraries (see "Dependencies" below).
 
 # Usage
 
-* x
+* x: Feladat: színezze ki azokat a háromszögeket, amelyek területe “jellemző” a
+háromszöghálóra, tehát nagyobb, mint a legkisebb 25%, és kisebb, mint a
+legnagyobb 25% (azaz az 1. és 3. kvartilis között van). Írja ki a medián értékét.
 * i
 * w
 * e
