@@ -1,10 +1,42 @@
-# Usage
+# Triangle Mesh
 
-Pressing `h` displays a help window that contains all the necessary information.
-If you want to use this as a base for your own project, examine the source code
-and read the documentation of the various libraries (see "Dependencies" below).
+This is a minimal framework for 3D mesh manipulation, which can be extended and used as a base for various projects, for example prototypes for fairing algorithms, or even displaying/modifying parametric surfaces, etc.
 
-# INSTALLATION
+A framework for practicing 
+* handling of 3D points, vectors and triangle meshes
+* displaying points, sections and polygons
+* coloring, texturing
+* some basic algorithms (curvature calculation, smoothing, evaluating Bezier surfaces)
+
+<p align="center">
+  <img width=70% src="https://github.com/Viktr0/Triangle-mesh/assets/47856193/e6bce3e3-4423-4c0e-ac63-9ba2490ed9cd"/>
+</p>
+
+## Usage
+
+The following hotkeys are available:
+* `H`: Displays a help window that contains all the necessary information.
+* `R`: Reload model
+* `O`: Toggle orthographic projection
+* `P`: Set plain map (no coloring)
+* `M`: Set mean curvature map
+* `L`: Set slicing map
+     - +: Increase slicing density
+     - -: Decrease slicing density
+     - *: Set slicing direction to view
+* `I`: Set isophote line map
+* `E`: Set environment texture
+* `C`: Toggle control polygon visualization
+* `S`: Toggle solid (filled polygon) visualization
+* `W`: Toggle wireframe visualization
+* `X`: Colors the triangles whose area is "typical" of the triangle mesh, i.e. larger than the smallest 25% and smaller than the largest 25% (ie between the 1st and 3rd quartiles), and also writes the value of the median.
+* `F`: Fair mesh
+
+<p align="center">
+  <img src="https://github.com/Viktr0/Triangle-mesh/assets/47856193/a21e81a9-55e9-48e1-8804-b6ab20bd908d" alt="animated" />
+</p>
+
+## Installations
 
 Dependencies:
 
@@ -12,7 +44,7 @@ Dependencies:
 - libQGLViewer (http://www.libqglviewer.com/)
 - OpenMesh (http://www.openmesh.org/)
 
-## Linux
+### Linux
 
     qmake && make
 
@@ -26,7 +58,7 @@ Assumes that:
 
 If any of the above is not satisfied, edit sample-framework.pro accordingly.
 
-## Windows / Visual Studio
+### Windows / Visual Studio
 
 1. Install the Qt SDK, which should integrate itself into Visual Studio.
 
