@@ -36,6 +36,46 @@ The following hotkeys are available:
   <img src="https://github.com/Viktr0/Triangle-mesh/assets/47856193/a21e81a9-55e9-48e1-8804-b6ab20bd908d" alt="animated" />
 </p>
 
+### Linear Coons surface
+
+Apart from Bezier surfaces, now you are able to construate linear Coons patch, defined by 4 B-Spline curves.
+
+<p align="center">
+  <img src="https://github.com/Viktr0/Triangle-mesh/assets/47856193/7aaca21a-4f4c-484d-8462-1a3f54d52cd5" alt="animated" />
+</p>
+
+You can see the control polygons of 4 B-Spline curves colored with green, blue, red and white.
+The B-Spline curves are readed in from an input text file formatted like the following lines:
+
+    0 5 11 16 21
+    0 0 0
+    0.538973 0.441238 -0.018869
+    0.789511 0.710987 -0.0178379
+    1.0705 0.99705 -0.0424056
+    1.5 1.4 0
+    1.92654 2.03299 0.0510866
+    2.04474 1.46541 0.513285
+    2.0621 0.953166 0.941437
+    2.12746 0.370118 1.4236
+    2 0 2
+    2 0 2.5
+    2 0 3
+    1.74 0.148986 3.03634
+    1.44868 0.450289 3.03323
+    1 1 3
+    0.5 0.4 3
+    0.212158 0.223493 2.93774
+    0.0339112 0.547355 2.55629
+    0.034626 0.92554 2.11624
+    -0.0351735 1.12071 1.6582
+    -0.0340348 1.20689 0.729131
+
+The linear Coons patch bounded by the B-Spline curves described by the above lines is the following.
+
+<p align="center">
+  <img src="https://github.com/Viktr0/Triangle-mesh/assets/47856193/4fae8347-3b26-4c5e-a995-7b08df99a7e5" alt="animated" />
+</p>
+
 ## Installations
 
 Dependencies:
