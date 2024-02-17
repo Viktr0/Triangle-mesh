@@ -76,6 +76,7 @@ void MyWindow::open() {
                                  tr("Readable files (*.obj *.ply *.stl *.bzr);;"
                                     "Mesh (*.obj *.ply *.stl);;"
                                     "Bézier surface (*.bzr);;"
+									"Coons surface (*.txt);;"
                                     "All files (*.*)"));
   if(filename.isEmpty())
     return;
@@ -84,6 +85,8 @@ void MyWindow::open() {
   bool ok;
   if (filename.endsWith(".bzr"))
     ok = viewer->openBezier(filename.toUtf8().data());
+  else if (filename.endsWith(".txt"))
+	  ok = viewer->openCoons(filename.toUtf8().data());
   else
     ok = viewer->openMesh(filename.toUtf8().data());
 
@@ -95,14 +98,24 @@ void MyWindow::open() {
 void MyWindow::save() {
   auto filename =
     QFileDialog::getSaveFileName(this, tr("Save File"), last_directory,
-                                 tr("Bézier surface (*.bzr);;"));
+                                 tr("Bézier surface (*.bzr);;"
+									 "Coons surface (*.txt)"));
   if(filename.isEmpty())
     return;
   last_directory = QFileInfo(filename).absolutePath();
 
-  if (!viewer->saveBezier(filename.toUtf8().data()))
+  bool ok;
+  if (filename.endsWith(".bzr"))
+	  ok = viewer->saveBezier(filename.toUtf8().data());
+  else if (filename.endsWith(".txt"))
+	  ok = viewer->saveCoons(filename.toUtf8().data());
+  if (!ok)
+	  QMessageBox::warning(this, tr("Cannot save file"),
+		  tr("Could not save file: ") + filename + ".");
+
+  /*if (!viewer->saveBezier(filename.toUtf8().data()))
     QMessageBox::warning(this, tr("Cannot save file"),
-                         tr("Could not save file: ") + filename + ".");
+                         tr("Could not save file: ") + filename + ".");*/
 }
 
 void MyWindow::setCutoff() {

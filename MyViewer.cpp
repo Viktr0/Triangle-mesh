@@ -259,6 +259,46 @@ static Vec HSV2RGB(Vec hsv) {
 	return rgb;
 }
 
+void MyViewer::updateContinuousMeanCurvature() {
+
+	// Points (P1, P1, P3, P4)
+	Vec P1 = bs[0].cp.at(0);						// S(0,0)
+	Vec P2 = bs[0].cp.at(bs[0].cp.size() - 1);		// S(1,0)
+	Vec P4 = bs[2].cp.at(0);						// S(0,1)
+	Vec P3 = bs[2].cp.at(bs[2].cp.size() - 1);		// S(1,1)
+
+	std::vector<Vec> C1, C2, C3, C4;
+
+	for (auto vert : mesh.vertices()) {
+		double u = mesh.data(vert).u;
+		double v = mesh.data(vert).v;
+
+		bs[0].derivativesByControlPoints(u, 2, C1);
+		bs[1].derivativesByControlPoints(v, 2, C2);
+		bs[2].derivativesByControlPoints(u, 2, C3);
+		bs[3].derivativesByControlPoints(v, 2, C4);
+
+		Vec Su = v * P4 - v * P3 - (1 - v)*P2 + (1 - v)*P1 - C4[0] + C2[0] + C3[1] * v + C1[1] * (1 - v);
+		Vec Sv = (-1)*(1 - u)*(P4 - P1) - u * (P3 - P2) + (1 - u)*C4[1] + u * C2[1] + C3[0] - C1[0];
+		Vec Suu = C3[2] * v + C1[2] * (1 - v);
+		Vec Suv = P4 - P3 + P2 - P1 - C4[1] + C2[1] + C3[1] - C1[1];
+		Vec Svv = (1 - u)*C4[2] + u * C2[2];
+
+		double E = Su * Su;
+		double F = Su * Sv;
+		double G = Sv * Sv;
+
+		Vec n = (Su^Sv).unit();
+		double L = n * Suu;
+		double M = n * Suv;
+		double N = n * Svv;
+
+		double H = (N*E - 2 * M*F + L * G) / (2 * (E*G - F * F));
+
+		mesh.data(vert).mean = H;
+	}
+}
+
 Vec MyViewer::meanMapColor(double d) const {
 	double red = 0, green = 120, blue = 240; // Hue
 	if (d < 0) {
@@ -386,6 +426,8 @@ void MyViewer::updateVertexNormals() {
 void MyViewer::updateMesh(bool update_mean_range) {
 	if (model_type == ModelType::BEZIER_SURFACE)
 		generateMesh(50);
+	else if (model_type == ModelType::COONS_SURFACE)
+		generateMeshCoons(50);
 	mesh.request_face_normals(); mesh.request_vertex_normals();
 	mesh.update_face_normals();
 	X_firstQuartile = X_calcFirstQuartile(X_triangleAreas());
@@ -454,6 +496,62 @@ bool MyViewer::openBezier(const std::string &filename, bool update_view) {
 	return true;
 }
 
+bool MyViewer::openCoons(const std::string &filename, bool update_view) {
+	control_points.clear();
+	p = 3;
+
+	try {
+		std::ifstream f(filename.c_str());
+		f.exceptions(std::ios::failbit | std::ios::badbit);
+		f >> edge_info[0] >> edge_info[1] >> edge_info[2] >> edge_info[3] >> edge_info[4];
+		for (int i = 0; i < 4; i++)
+			bs[i].n = edge_info[i + 1] - edge_info[i];
+		for (int k = 0; k < 4; k++) {
+			bs[k].knots.clear();
+			for (int i = 0; i < p + 1; i++)
+				bs[k].knots.push_back(0);
+			for (int i = 1; i < (bs[k].n + 1 - 3); i++)
+				bs[k].knots.push_back((double)i / (bs[k].n + 1 - 3));
+			for (int i = 0; i < p + 1; i++)
+				bs[k].knots.push_back(1);
+		}
+		control_points.resize(edge_info[4]);
+		for (int index = 0; index < edge_info[4]; index++)
+			f >> control_points[index][0] >> control_points[index][1] >> control_points[index][2];
+		for (int i = 0; i < 4; i++)
+			bs[i].cp = getControlPoints(i);
+	}
+	/*
+	try {
+		std::ifstream f(filename.c_str());
+		f.exceptions(std::ios::failbit | std::ios::badbit);
+		f >> edge_info[0] >> edge_info[1] >> edge_info[2] >> edge_info[3] >> edge_info[4];
+		for (int i = 0; i < 4; i++)
+			segments[i] = edge_info[i + 1] - edge_info[i];
+		for (int k = 0; k < 4; k++) {
+			knots[k].clear();
+			for (int i = 0; i < p + 1; i++)
+				knots[k].push_back(0);
+			for (int i = 1; i < (segments[k] + 1 - 3); i++)
+				knots[k].push_back((double)i / (segments[k] + 1 - 3));
+			for (int i = 0; i < p + 1; i++)
+				knots[k].push_back(1);
+		}
+		control_points.resize(edge_info[4]);
+		for(int index = 0; index < edge_info[4]; index++)
+			f >> control_points[index][0] >> control_points[index][1] >> control_points[index][2];
+	}*/
+	catch (std::ifstream::failure &) {
+		return false;
+	}
+	model_type = ModelType::COONS_SURFACE;
+	last_filename = filename;
+	updateMesh(update_view);
+	if (update_view)
+		setupCamera();
+	return true;
+}
+
 bool MyViewer::saveBezier(const std::string &filename) {
 	if (model_type != ModelType::BEZIER_SURFACE)
 		return false;
@@ -462,6 +560,23 @@ bool MyViewer::saveBezier(const std::string &filename) {
 		std::ofstream f(filename.c_str());
 		f.exceptions(std::ios::failbit | std::ios::badbit);
 		f << degree[0] << ' ' << degree[1] << std::endl;
+		for (const auto &p : control_points)
+			f << p[0] << ' ' << p[1] << ' ' << p[2] << std::endl;
+	}
+	catch (std::ifstream::failure &) {
+		return false;
+	}
+	return true;
+}
+
+bool MyViewer::saveCoons(const std::string &filename) {
+	if (model_type != ModelType::COONS_SURFACE)
+		return false;
+
+	try {
+		std::ofstream f(filename.c_str());
+		f.exceptions(std::ios::failbit | std::ios::badbit);
+		f << edge_info[0] << ' ' << edge_info[1] << ' ' << edge_info[2] << ' ' << edge_info[3] << ' ' << edge_info[4] << std::endl;
 		for (const auto &p : control_points)
 			f << p[0] << ' ' << p[1] << ' ' << p[2] << std::endl;
 	}
@@ -626,6 +741,7 @@ void MyViewer::drawWithNames() {
 			glPopName();
 		}
 		break;
+	case ModelType::COONS_SURFACE:
 	case ModelType::BEZIER_SURFACE:
 		if (!show_control_points)
 			return;
@@ -672,7 +788,7 @@ void MyViewer::postSelection(const QPoint &p) {
 	selected_vertex = sel;
 	if (model_type == ModelType::MESH)
 		axes.position = Vec(mesh.point(MyMesh::VertexHandle(sel)).data());
-	if (model_type == ModelType::BEZIER_SURFACE)
+	if (model_type == ModelType::BEZIER_SURFACE || model_type == ModelType::COONS_SURFACE)
 		axes.position = control_points[sel];
 	double depth = camera()->projectedCoordinatesOf(axes.position)[2];
 	Vec q1 = camera()->unprojectedCoordinatesOf(Vec(0.0, 0.0, depth));
@@ -690,6 +806,8 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
 				openMesh(last_filename, false);
 			else if (model_type == ModelType::BEZIER_SURFACE)
 				openBezier(last_filename, false);
+			else if (model_type == ModelType::COONS_SURFACE)
+				openCoons(last_filename, false);
 			update();
 			break;
 		case Qt::Key_O:
@@ -739,7 +857,7 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
 			break;
 		case Qt::Key_X:
 			visualization = Visualization::X_TRIANGLES;
-			emit X_showMedian();
+			//emit X_showMedian();
 			update();
 			break;
 		default:
@@ -757,6 +875,14 @@ void MyViewer::keyPressEvent(QKeyEvent *e) {
 			break;
 		case Qt::Key_Asterisk:
 			slicing_dir = Vector(static_cast<double *>(camera()->viewDirection()));
+			update();
+			break;
+		}
+	else if (e->modifiers() == Qt::ShiftModifier)
+		switch (e->key()) {
+		case Qt::Key_M:
+			visualization = Visualization::CONTINUOUS_MEAN;
+			updateContinuousMeanCurvature();
 			update();
 			break;
 		}
@@ -789,6 +915,179 @@ void MyViewer::bernsteinAll(size_t n, double u, std::vector<double> &coeff) {
 	}
 }
 
+
+std::vector<Vec> MyViewer::getControlPoints(int edge_idx) const {
+	std::vector<Vec> edge_cps;
+	for (int i = edge_info[edge_idx]; i < edge_info[edge_idx + 1]; i++)
+		edge_cps.push_back(control_points.at(i));
+	if (edge_idx < 3)
+		edge_cps.push_back(control_points.at(edge_info[edge_idx + 1]));
+	else
+		edge_cps.push_back(control_points.at(0));
+	if (edge_idx > 1)
+		std::reverse(edge_cps.begin(), edge_cps.end());
+	return edge_cps;
+}
+
+size_t MyViewer::BSplineCurve::findSpan(double u) const
+{
+	if (u == knots[n + 1])
+		return n;
+	return (std::upper_bound(knots.begin() + p + 1, knots.end(), u) - knots.begin()) - 1;
+}
+
+void MyViewer::BSplineCurve::basisFunctions(size_t i, double u, std::vector<double> &coeff) const
+{
+	coeff.clear(); coeff.reserve(p + 1);
+	coeff.push_back(1.0);
+	std::vector<double> left(p + 1), right(p + 1);
+	for (size_t j = 1; j <= p; ++j) {
+		left[j] = u - knots[i + 1 - j];
+		right[j] = knots[i + j] - u;
+		double saved = 0.0;
+		for (size_t r = 0; r < j; ++r) {
+			double tmp = coeff[r] / (right[r + 1] + left[j - r]);
+			coeff[r] = saved + tmp * right[r + 1];
+			saved = tmp * left[j - r];
+		}
+		coeff.push_back(saved);
+	}
+}
+
+Vec MyViewer::BSplineCurve::evaluate(double u) const
+{
+	double span = findSpan(u);
+	std::vector<double> coeff; basisFunctions(span, u, coeff);
+	Vec point(0.0, 0.0, 0.0);
+	for (size_t i = 0; i <= p; ++i)
+		point += cp[span - p + i] * coeff[i];
+	return point;
+}
+
+void MyViewer::BSplineCurve::basisFunctionDerivatives(size_t i, double u, size_t d, std::vector<std::vector<double>> &der) const
+{
+	der.clear(); der.resize(d + 1);
+	std::vector<double> left(p + 1), right(p + 1), a[2];
+	a[0].resize(p + 1); a[1].resize(p + 1);
+	std::vector<std::vector<double>> ndu(p + 1);
+	ndu[0].resize(p + 1); ndu[0][0] = 1.0;
+	for (size_t j = 1; j <= p; ++j) {
+		ndu[j].resize(p + 1);
+		left[j] = u - knots[i + 1 - j];
+		right[j] = knots[i + j] - u;
+		double saved = 0.0;
+		for (size_t r = 0; r < j; ++r) {
+			// lower triangle
+			ndu[j][r] = right[r + 1] + left[j - r];
+			double tmp = ndu[r][j - 1] / ndu[j][r];
+			// upper triangle
+			ndu[r][j] = saved + tmp * right[r + 1];
+			saved = tmp * left[j - r];
+		}
+		ndu[j][j] = saved;
+	}
+	for (size_t j = 0; j <= p; ++j)
+		der[0].push_back(ndu[j][p]);
+	for (size_t r = 0; r <= p; ++r) {
+		size_t s1 = 0, s2 = 1;
+		a[0][0] = 1.0;
+		for (size_t k = 1; k <= d; ++k) {
+			double dd = 0.0;
+			int rk = r - k;
+			int pk = p - k;
+			if (r >= k) {
+				a[s2][0] = a[s1][0] / ndu[pk + 1][rk];
+				dd = a[s2][0] * ndu[rk][pk];
+			}
+			size_t j1 = rk >= -1 ? 1 : -rk;
+			size_t j2 = (int)r - 1 <= pk ? k - 1 : p - r;
+			for (size_t j = j1; j <= j2; ++j) {
+				a[s2][j] = (a[s1][j] - a[s1][j - 1]) / ndu[pk + 1][rk + j];
+				dd += a[s2][j] * ndu[rk + j][pk];
+			}
+			if (r <= (size_t)pk) {
+				a[s2][k] = -a[s1][k - 1] / ndu[pk + 1][r];
+				dd += a[s2][k] * ndu[r][pk];
+			}
+			der[k].push_back(dd);
+			std::swap(s1, s2);
+		}
+	}
+	size_t r = p;
+	for (size_t k = 1; k <= d; ++k) {
+		for (size_t j = 0; j <= p; ++j)
+			der[k][j] *= r;
+		r *= p - k;
+	}
+}
+
+Vec MyViewer::BSplineCurve::derivatives(double u, size_t d, std::vector<Vec> &der) const
+{
+	size_t du = std::min(d, p);
+	der.clear();
+	size_t span = findSpan(u);
+	std::vector<std::vector<double>> nder; basisFunctionDerivatives(span, u, du, nder);
+	for (size_t k = 0; k <= du; ++k) {
+		der.emplace_back(0.0, 0.0, 0.0);
+		for (size_t j = 0; j <= p; ++j)
+			der[k] += cp[span - p + j] * nder[k][j];
+	}
+	for (size_t k = p + 1; k <= d; ++k)
+		der.emplace_back(0.0, 0.0, 0.0);
+	return der[0];
+}
+
+void MyViewer::BSplineCurve::derivativeControlPoints(size_t d, size_t r1, size_t r2, std::vector<std::vector<Vec>> &dcp) const
+{
+	dcp.clear(); dcp.resize(d + 1);
+	size_t r = r2 - r1;
+	dcp[0].reserve(r + 1);
+	for (size_t i = 0; i <= r; ++i)
+		dcp[0].push_back(cp[r1 + i]);
+	for (size_t k = 1; k <= d; ++k) {
+		dcp[k].reserve(r + 1 - k);
+		size_t tmp = p - k + 1;
+		for (size_t i = 0; i <= r - k; ++i)
+			dcp[k].push_back((dcp[k - 1][i + 1] - dcp[k - 1][i]) * tmp / (knots[r1 + i + p + 1] - knots[r1 + i + k]));
+	}
+}
+
+void MyViewer::BSplineCurve::basisFunctionsAll(size_t i, double u, std::vector<std::vector<double>> &coeff) const
+{
+	coeff.clear(); coeff.resize(p + 1);
+	coeff[0].push_back(1.0);
+	std::vector<double> left(p + 1), right(p + 1);
+	for (size_t j = 1; j <= p; ++j) {
+		coeff[j].reserve(j + 1);
+		left[j] = u - knots[i + 1 - j];
+		right[j] = knots[i + j] - u;
+		double saved = 0.0;
+		for (size_t r = 0; r < j; ++r) {
+			double tmp = coeff[j - 1][r] / (right[r + 1] + left[j - r]);
+			coeff[j].push_back(saved + tmp * right[r + 1]);
+			saved = tmp * left[j - r];
+		}
+		coeff[j].push_back(saved);
+	}
+}
+
+Vec MyViewer::BSplineCurve::derivativesByControlPoints(double u, size_t d, std::vector<Vec> &der) const
+{
+	size_t du = std::min(d, p);
+	der.clear();
+	size_t span = findSpan(u);
+	std::vector<std::vector<double>> coeff; basisFunctionsAll(span, u, coeff);
+	std::vector<std::vector<Vec>> dcp; derivativeControlPoints(du, span - p, span, dcp);
+	for (size_t k = 0; k <= du; ++k) {
+		der.emplace_back(0.0, 0.0, 0.0);
+		for (size_t j = 0; j <= p - k; ++j)
+			der[k] += dcp[k][j] * coeff[p - k][j];
+	}
+	for (size_t k = p + 1; k <= d; ++k)
+		der.emplace_back(0.0, 0.0, 0.0);
+	return der[0];
+}
+
 void MyViewer::generateMesh(size_t resolution) {
 	mesh.clear();
 	std::vector<MyMesh::VertexHandle> handles, tri;
@@ -806,6 +1105,54 @@ void MyViewer::generateMesh(size_t resolution) {
 				for (size_t l = 0; l <= m; ++l, ++index)
 					p += control_points[index] * coeff_u[k] * coeff_v[l];
 			handles.push_back(mesh.add_vertex(Vector(static_cast<double *>(p))));
+		}
+	}
+	for (size_t i = 0; i < resolution - 1; ++i)
+		for (size_t j = 0; j < resolution - 1; ++j) {
+			tri.clear();
+			tri.push_back(handles[i * resolution + j]);
+			tri.push_back(handles[i * resolution + j + 1]);
+			tri.push_back(handles[(i + 1) * resolution + j]);
+			mesh.add_face(tri);
+			tri.clear();
+			tri.push_back(handles[(i + 1) * resolution + j]);
+			tri.push_back(handles[i * resolution + j + 1]);
+			tri.push_back(handles[(i + 1) * resolution + j + 1]);
+			mesh.add_face(tri);
+		}
+}
+
+
+void MyViewer::generateMeshCoons(size_t resolution) {
+	mesh.clear();
+	std::vector<MyMesh::VertexHandle> handles, tri;
+
+	// Update control points for all BSplineCurve
+	for (int i = 0; i < 4; i++)
+		bs[i].cp = getControlPoints(i);
+
+	Vec S00 = bs[0].cp.at(0);
+	Vec S10 = bs[0].cp.at(bs[0].cp.size() - 1);
+	Vec S01 = bs[2].cp.at(0);
+	Vec S11 = bs[2].cp.at(bs[2].cp.size() - 1);
+
+	for (size_t i = 0; i < resolution; ++i) {
+		double u = (double)i / (double)(resolution - 1);
+		Vec bs_0 = bs[0].evaluate(u);
+		Vec bs_2 = bs[2].evaluate(u);
+		for (size_t j = 0; j < resolution; ++j) {
+			double v = (double)j / (double)(resolution - 1);
+			Vec bs_1 = bs[1].evaluate(v);
+			Vec bs_3 = bs[3].evaluate(v);
+
+			Vec s1 = (1.0 - v)* bs_0 + v * bs_2;
+			Vec s2 = (1.0 - u)* bs_3 + u * bs_1;
+			Vec s12 = (1.0 - v) * ((1.0 - u) * S00 + u * S10) + v * ((1.0 - u) * S01 + u * S11);
+
+			Vec p = s1 + s2 - s12;
+			handles.push_back(mesh.add_vertex(Vector(static_cast<double *>(p))));
+			mesh.data(handles.at(handles.size() - 1)).u = u;
+			mesh.data(handles.at(handles.size() - 1)).v = v;
 		}
 	}
 	for (size_t i = 0; i < resolution - 1; ++i)

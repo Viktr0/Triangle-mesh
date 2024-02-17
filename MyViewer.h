@@ -29,6 +29,8 @@ public:
   bool openMesh(const std::string &filename, bool update_view = true);
   bool openBezier(const std::string &filename, bool update_view = true);
   bool saveBezier(const std::string &filename);
+  bool openCoons(const std::string &filename, bool update_view = true);
+  bool saveCoons(const std::string &filename);
 
 signals:
   void startComputation(QString message);
@@ -50,7 +52,9 @@ private:
     using Point  = OpenMesh::Vec3d; // the default would be Vec3f
     using Normal = OpenMesh::Vec3d;
     VertexTraits {
-      double mean;              // approximated mean curvature
+		double mean;              // approximated mean curvature
+		double u;
+		double v;
     };
   };
   using MyMesh = OpenMesh::TriMesh_ArrayKernelT<MyTraits>;
@@ -66,10 +70,39 @@ private:
   double voronoiWeight(MyMesh::HalfedgeHandle in_he);
   void updateMeanMinMax();
   void updateMeanCurvature();
+  void updateContinuousMeanCurvature();
 
   // Bezier
   static void bernsteinAll(size_t n, double u, std::vector<double> &coeff);
   void generateMesh(size_t resolution);
+
+  // Coons
+  size_t findSpanA(double u, int edge_idx) const;
+  void basisFunctionsA(size_t i, double u, std::vector<double> &coeff, int edge_idx, int p) const;
+  Vec evaluateA(double u, int edge_idx, int p, std::vector<Vec> cps) const;
+  void derivativeControlPoints(size_t d, size_t r1, size_t r2, std::vector<std::vector<Vec>> &dcp, std::vector<Vec> cp, int edge_idx) const;
+  void generateMeshCoons(size_t resolution);
+  std::vector<Vec> getControlPoints(int edge_idx) const;
+
+
+  // BSpline
+  struct BSplineCurve
+  {
+	  size_t p = 3;						// degree
+	  size_t n;						// n + 1 = cp.size()
+	  std::vector<double> knots;      // first and last p+1 values are the same ("clamped")
+	  std::vector<Vec> cp;			// knots.size() = cp.size() + p + 1
+
+	  void updateCP() const;
+	  size_t findSpan(double u) const;
+	  void basisFunctions(size_t i, double u, std::vector<double> &coeff) const;
+	  Vec evaluate(double u) const;
+	  void basisFunctionDerivatives(size_t i, double u, size_t d, std::vector<std::vector<double>> &der) const;
+	  Vec derivatives(double u, size_t d, std::vector<Vec> &der) const;
+	  void derivativeControlPoints(size_t d, size_t r1, size_t r2, std::vector<std::vector<Vec>> &dcp) const;
+	  void basisFunctionsAll(size_t i, double u, std::vector<std::vector<double>> &coeff) const;
+	  Vec derivativesByControlPoints(double u, size_t d, std::vector<Vec> &der) const;
+  };
 
   // Visualization
   void setupCamera();
@@ -93,7 +126,7 @@ private:
   // Member variables //
   //////////////////////
 
-  enum class ModelType { NONE, MESH, BEZIER_SURFACE } model_type;
+  enum class ModelType { NONE, MESH, BEZIER_SURFACE, COONS_SURFACE } model_type;
 
   // Mesh
   MyMesh mesh;
@@ -102,11 +135,20 @@ private:
   size_t degree[2];
   std::vector<Vec> control_points;
 
+  // Coons
+  BSplineCurve bs[4];				// oldalak
+  size_t edge_info[5];			// oldalak kezdo indexe es pontok szama
+  size_t p;						// fokszam
+  size_t segments[4];				// n + 1 = control_p.size()
+  std::vector<double> knots[4];	// elso es utolso p+1 ertek megegyezik
+  std::vector<Vec> testBSpoint;
+  //std::vector<Vec> control_p;	// knots.size() = control_p.size() + p + 1
+
   // Visualization
   double mean_min, mean_max, cutoff_ratio;
   double X_firstQuartile, X_lastQuartile;
   bool show_control_points, show_solid, show_wireframe;
-  enum class Visualization { PLAIN, MEAN, SLICING, ISOPHOTES, X_TRIANGLES } visualization;
+  enum class Visualization { PLAIN, MEAN, SLICING, ISOPHOTES, X_TRIANGLES, CONTINUOUS_MEAN } visualization;
   GLuint isophote_texture, environment_texture, current_isophote_texture, slicing_texture;
   Vector slicing_dir;
   double slicing_scaling;
