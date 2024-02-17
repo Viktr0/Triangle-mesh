@@ -620,6 +620,8 @@ void MyViewer::init() {
 void MyViewer::draw() {
 	if (model_type == ModelType::BEZIER_SURFACE && show_control_points)
 		drawControlNet();
+	if (model_type == ModelType::COONS_SURFACE && show_control_points) // TIPP: || ModelType::COONS_SURFACE
+		drawControlNetCoons();
 
 	glPolygonMode(GL_FRONT_AND_BACK, !show_solid && show_wireframe ? GL_LINE : GL_FILL);
 	glEnable(GL_POLYGON_OFFSET_FILL);
@@ -643,21 +645,14 @@ void MyViewer::draw() {
 			glEnable(GL_TEXTURE_1D);
 		}
 		for (auto f : mesh.faces()) {
-			if (visualization == Visualization::X_TRIANGLES) {
-				glBegin(GL_TRIANGLES);
-				std::vector<GLdouble> RGB = X_triangleColor(f, X_firstQuartile, X_lastQuartile);
-				glColor3d(RGB.at(0), RGB.at(1), RGB.at(2));
-			}	
-			else
-				glBegin(GL_POLYGON);
+			glBegin(GL_POLYGON);
 			for (auto v : mesh.fv_range(f)) {
-				if (visualization == Visualization::MEAN)
+				if (visualization == Visualization::MEAN || visualization == Visualization::CONTINUOUS_MEAN)
 					glColor3dv(meanMapColor(mesh.data(v).mean));
 				else if (visualization == Visualization::SLICING)
 					glTexCoord1d(mesh.point(v) | slicing_dir * slicing_scaling);
 				glNormal3dv(mesh.normal(v).data());
 				glVertex3dv(mesh.point(v).data());
-				
 			}
 			glEnd();
 		}
@@ -671,22 +666,6 @@ void MyViewer::draw() {
 			glDisable(GL_TEXTURE_1D);
 		}
 	}
-
-	if (show_solid && show_wireframe) {
-		glPolygonMode(GL_FRONT, GL_LINE);
-		glColor3d(0.0, 0.0, 0.0);
-		glDisable(GL_LIGHTING);
-		for (auto f : mesh.faces()) {
-			glBegin(GL_POLYGON);
-			for (auto v : mesh.fv_range(f))
-				glVertex3dv(mesh.point(v).data());
-			glEnd();
-		}
-		glEnable(GL_LIGHTING);
-	}
-
-	if (axes.shown)
-		drawAxes();
 }
 
 void MyViewer::drawControlNet() const {
@@ -704,6 +683,38 @@ void MyViewer::drawControlNet() const {
 			}
 			glEnd();
 		}
+	glLineWidth(1.0);
+	glPointSize(8.0);
+	glColor3d(1.0, 0.0, 1.0);
+	glBegin(GL_POINTS);
+	for (const auto &p : control_points)
+		glVertex3dv(p);
+	glEnd();
+	glPointSize(1.0);
+	glEnable(GL_LIGHTING);
+}
+
+
+void MyViewer::drawControlNetCoons() const {
+	glDisable(GL_LIGHTING);
+	glLineWidth(3.0);
+	glColor3d(1.0, 1.0, 1.0);
+	glBegin(GL_LINE_STRIP);
+
+	for (int index = edge_info[0]; index <= edge_info[1]; index++)
+		glVertex3dv(control_points[index]);
+	glColor3d(1.0, 0.0, 0.0);
+	for (int index = edge_info[1]; index <= edge_info[2]; index++)
+		glVertex3dv(control_points[index]);
+	glColor3d(0.0, 1.0, 0.0);
+	for (int index = edge_info[2]; index <= edge_info[3]; index++)
+		glVertex3dv(control_points[index]);
+	glColor3d(0.0, 0.0, 1.0);
+	for (int index = edge_info[3]; index < edge_info[4]; index++)
+		glVertex3dv(control_points[index]);
+	glVertex3dv(control_points[0]);
+	glEnd();
+
 	glLineWidth(1.0);
 	glPointSize(8.0);
 	glColor3d(1.0, 0.0, 1.0);

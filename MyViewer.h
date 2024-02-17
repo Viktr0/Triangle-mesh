@@ -108,9 +108,11 @@ private:
   void setupCamera();
   Vec meanMapColor(double d) const;
   void drawControlNet() const;
+  void drawControlNetCoons() const;
   void drawAxes() const;
   void drawAxesWithNames() const;
   static Vec intersectLines(const Vec &ap, const Vec &ad, const Vec &bp, const Vec &bd);
+  
   // Task
   double X_getTriangleArea(OpenMesh::FaceHandle face) const;
   std::vector<double> X_triangleAreas() const;
